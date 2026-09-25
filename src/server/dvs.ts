@@ -69,7 +69,14 @@ export async function dvsRequest<T>(jar: Jar, method: 'GET' | 'POST', path: stri
 
   if (res.status === 401 || res.status === 403) throw new DvsAuthError()
   const text = await res.text()
-  const data = text ? JSON.parse(text) : null
+  let data
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    // DVS answers with its HTML portal page on server errors and unknown routes.
+    console.error(`DVS ${method} ${path} returned ${res.status} non-JSON:`, text.trim().slice(0, 200))
+    throw new DvsError(`Parkeren Delft gaf een onverwacht antwoord (${res.status}). Probeer het later opnieuw.`)
+  }
   if (!res.ok) {
     throw new DvsError(data?.detail ?? data?.title ?? `Parkeren Delft gaf een fout (${res.status}). Probeer het later opnieuw.`)
   }

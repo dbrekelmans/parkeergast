@@ -1,9 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useApp } from '#/components/AppContext'
 import { ReservationCard } from '#/components/ReservationCard'
+import { SectionHeading } from '#/components/SectionHeading'
 import { TariffStrip } from '#/components/TariffStrip'
+import { Button } from '#/components/ui/button'
+import { Card } from '#/components/ui/card'
+import { Empty, EmptyDescription } from '#/components/ui/empty'
 import { useNow } from '#/components/useNow'
 import { euro } from '#/lib/time'
-import { useApp } from '#/components/AppContext'
 
 export const Route = createFileRoute('/_app/')({ component: Overview })
 
@@ -14,43 +18,37 @@ function Overview() {
   const minutes = account.balance % 60
 
   return (
-    <main className="screen">
-      <section className="panel" aria-label="Saldo">
-        <div className="balance-top">
+    <main className="flex flex-col gap-3.5 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+140px)]">
+      <Card aria-label="Saldo" className="gap-3.5 p-4.5">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="label">Saldo</div>
-            <div className="big num">
+            <div className="text-xs font-medium text-muted-foreground">Saldo</div>
+            <div className="text-[34px] leading-tight font-bold tracking-tight tabular-nums">
               {hours}
-              <small>u</small>
+              <small className="mr-1 ml-0.5 text-lg font-semibold text-muted-foreground">u</small>
               {minutes}
-              <small>m</small>
+              <small className="ml-0.5 text-lg font-semibold text-muted-foreground">m</small>
             </div>
-            <div className="label num">≈ {euro(account.balance * account.unitPrice)} aan parkeertijd</div>
+            <div className="text-xs font-medium text-muted-foreground tabular-nums">
+              ≈ {euro(account.balance * account.unitPrice)} aan parkeertijd
+            </div>
           </div>
-          <button className="ghost-btn" onClick={openTopUp}>
+          <Button variant="secondary" className="rounded-full px-3.5 font-semibold" onClick={openTopUp}>
             Opwaarderen
-          </button>
+          </Button>
         </div>
         <TariffStrip blocks={blocks} now={now} />
-      </section>
+      </Card>
 
-      <div className="section-h">
-        <h2>Nu geparkeerd</h2>
-        {account.active.length > 0 && <span>{account.active.length} actief</span>}
-      </div>
-      <div className="stack">
+      <SectionHeading title="Nu geparkeerd" aside={account.active.length > 0 && `${account.active.length} actief`} />
+      <div className="flex flex-col gap-3">
         {account.active.length === 0 ? (
-          <div className="empty">Er staat nu niemand geparkeerd.</div>
+          <Empty className="rounded-2xl border-[1.5px] bg-card">
+            <EmptyDescription>Er staat nu niemand geparkeerd.</EmptyDescription>
+          </Empty>
         ) : (
           account.active.map((r) => (
-            <ReservationCard
-              key={r.id}
-              reservation={r}
-              plates={account.plates}
-              blocks={blocks}
-              step={account.stepMinutes}
-              now={now}
-            />
+            <ReservationCard key={r.id} reservation={r} plates={account.plates} blocks={blocks} step={account.stepMinutes} now={now} />
           ))
         )}
       </div>

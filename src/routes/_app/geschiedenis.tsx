@@ -1,10 +1,16 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Plate } from '#/components/Plate'
-import { formatPlate } from '#/lib/plate'
-import { getHistory } from '#/lib/api'
-import { MINUTE, clock, dayLabel, hm } from '#/lib/time'
 import { useApp } from '#/components/AppContext'
+import { Plate } from '#/components/Plate'
+import { SectionHeading } from '#/components/SectionHeading'
+import { Button } from '#/components/ui/button'
+import { Card } from '#/components/ui/card'
+import { Empty, EmptyDescription } from '#/components/ui/empty'
+import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '#/components/ui/item'
+import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
+import { getHistory } from '#/lib/api'
+import { formatPlate } from '#/lib/plate'
+import { MINUTE, clock, dayLabel, hm } from '#/lib/time'
 
 export const Route = createFileRoute('/_app/geschiedenis')({
   validateSearch: (search: Record<string, unknown>): { page?: number } =>
@@ -15,83 +21,102 @@ export const Route = createFileRoute('/_app/geschiedenis')({
   component: History,
 })
 
+const EVERYONE = '*'
+const chipClass = 'h-8 rounded-full bg-card px-3 text-[13px] aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background'
+
 function History() {
   const history = Route.useLoaderData()
   const { account, openNew } = useApp()
   const navigate = useNavigate({ from: Route.fullPath })
-  const [filter, setFilter] = useState<string | null>(null)
+  const [filter, setFilter] = useState(EVERYONE)
   const now = new Date()
 
   const nameFor = (plate: string) => account.plates.find((p) => p.value === plate)?.name
   const plates = [...new Set(history.items.map((h) => h.plate))]
-  const rows = history.items.filter((h) => !filter || h.plate === filter)
+  const rows = history.items.filter((h) => filter === EVERYONE || h.plate === filter)
 
   return (
-    <main className="screen">
-      <div className="section-h">
-        <h2>Geschiedenis</h2>
-        {history.totalPages > 1 && (
-          <span className="num">
-            pagina {history.page} van {history.totalPages}
-          </span>
-        )}
-      </div>
+    <main className="flex flex-col gap-3.5 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+140px)]">
+      <SectionHeading
+        title="Geschiedenis"
+        aside={history.totalPages > 1 && `pagina ${history.page} van ${history.totalPages}`}
+      />
 
       {plates.length > 1 && (
-        <div className="filter">
-          <button className="chip" aria-pressed={!filter} onClick={() => setFilter(null)}>
+        <ToggleGroup
+          variant="outline"
+          spacing={1.5}
+          aria-label="Filter op kenteken"
+          className="w-full overflow-x-auto pb-0.5"
+          value={[filter]}
+          onValueChange={([next]) => setFilter(next ?? EVERYONE)}
+        >
+          <ToggleGroupItem value={EVERYONE} className={chipClass}>
             Iedereen
-          </button>
+          </ToggleGroupItem>
           {plates.map((p) => (
-            <button key={p} className="chip" aria-pressed={filter === p} onClick={() => setFilter(p)}>
+            <ToggleGroupItem key={p} value={p} className={chipClass}>
               {nameFor(p) ?? formatPlate(p)}
-            </button>
+            </ToggleGroupItem>
           ))}
-        </div>
+        </ToggleGroup>
       )}
 
       {rows.length === 0 ? (
-        <div className="empty">Nog geen reserveringen.</div>
+        <Empty className="rounded-2xl border-[1.5px] bg-card">
+          <EmptyDescription>Nog geen reserveringen.</EmptyDescription>
+        </Empty>
       ) : (
-        <div className="hist">
+        <Card className="gap-0 py-0" role="list">
           {rows.map((h) => {
             const from = new Date(h.from)
             const until = new Date(h.until)
             const minutes = Math.round((until.getTime() - from.getTime()) / MINUTE)
             return (
-              <div className="hist-row" key={h.key}>
-                <Plate value={h.plate} small />
-                <div className="meta">
-                  <b>{nameFor(h.plate) ?? 'Gast'}</b>
-                  <span className="num">
+              <Item key={h.key} role="listitem" className="flex-nowrap gap-3 rounded-none border-b-border px-3.5 py-3 not-last:border-b">
+                <ItemMedia>
+                  <Plate value={h.plate} small />
+                </ItemMedia>
+                <ItemContent className="min-w-0 gap-0">
+                  <ItemTitle className="text-sm font-semibold">{nameFor(h.plate) ?? 'Gast'}</ItemTitle>
+                  <ItemDescription className="text-[13px] leading-snug tabular-nums">
                     {dayLabel(from, now)} {clock(from)}–{clock(until)} · {h.units ? hm(h.units) : 'gratis'}
-                  </span>
-                </div>
-                <button className="again" onClick={() => openNew({ plate: h.plate, minutes: Math.max(30, Math.round(minutes / 30) * 30) })}>
-                  Opnieuw
-                </button>
-              </div>
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="rounded-full px-3 font-semibold"
+                    onClick={() => openNew({ plate: h.plate, minutes: Math.max(30, Math.round(minutes / 30) * 30) })}
+                  >
+                    Opnieuw
+                  </Button>
+                </ItemActions>
+              </Item>
             )
           })}
-        </div>
+        </Card>
       )}
 
       {history.totalPages > 1 && (
-        <div className="pager">
-          <button
-            className="chip"
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            className="rounded-full"
             disabled={history.page <= 1}
             onClick={() => navigate({ search: history.page > 2 ? { page: history.page - 1 } : {} })}
           >
             Nieuwer
-          </button>
-          <button
-            className="chip"
+          </Button>
+          <Button
+            variant="outline"
+            className="rounded-full"
             disabled={history.page >= history.totalPages}
             onClick={() => navigate({ search: { page: history.page + 1 } })}
           >
             Ouder
-          </button>
+          </Button>
         </div>
       )}
     </main>

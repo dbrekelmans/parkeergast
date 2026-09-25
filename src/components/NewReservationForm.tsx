@@ -1,14 +1,22 @@
 import { useRouter } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import type { Account } from '#/lib/account'
 import { createReservation } from '#/lib/api'
 import { formatPlate, isPlausiblePlate, normalizePlate } from '#/lib/plate'
 import { nextPaidStart, paidMinutes, paidPeriodEnd, type Block } from '#/lib/tariff'
 import { MINUTE, clock, dayLabelSuffix, floorMinute, hm, wallTime } from '#/lib/time'
+import { errorMessage } from '#/lib/utils'
 import { Plate } from './Plate'
+import { SummaryRow } from './SummaryRow'
 import { TariffStrip } from './TariffStrip'
-import { errorMessage, useToast } from './Toast'
+import { Alert } from './ui/alert'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { Switch } from './ui/switch'
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 import { useNow } from './useNow'
 
 export type Prefill = { plate?: string; minutes?: number }
@@ -27,7 +35,6 @@ type Props = { account: Account; blocks: Block[]; prefill: Prefill; onDone: () =
 
 export function NewReservationForm({ account, blocks, prefill, onDone }: Props) {
   const router = useRouter()
-  const toast = useToast()
   const now = useNow(30_000)
   const createFn = useServerFn(createReservation)
 
@@ -88,35 +95,40 @@ export function NewReservationForm({ account, blocks, prefill, onDone }: Props) 
   return (
     <>
       {account.plates.length > 0 && (
-        <div>
-          <span className="field-l">Wie komt er?</span>
-          <div className="plates">
+        <div className="flex flex-col gap-2">
+          <span className="text-[13px] font-semibold">Wie komt er?</span>
+          <ToggleGroup
+            aria-label="Opgeslagen kentekens"
+            className="w-full flex-wrap"
+            value={picked ? [picked] : []}
+            onValueChange={([next]) => {
+              setPicked(next ?? null)
+              setTyped('')
+            }}
+          >
             {account.plates.map((p) => (
-              <button
+              <ToggleGroupItem
                 key={p.value}
-                className="pick"
-                aria-pressed={picked === p.value}
-                onClick={() => {
-                  setPicked(picked === p.value ? null : p.value)
-                  setTyped('')
-                }}
+                value={p.value}
+                className="h-auto gap-2 rounded-xl border-2 border-transparent bg-muted py-1.5 pr-2.5 pl-1.5 text-[13px] aria-pressed:border-primary aria-pressed:bg-secondary"
               >
                 <Plate value={p.value} small />
                 {p.name ?? 'Gast'}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </div>
       )}
 
-      <div>
-        <label className="field-l" htmlFor="plate-in">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="plate-in" className="text-[13px] font-semibold">
           {account.plates.length ? 'Of een ander kenteken' : 'Kenteken'}
-        </label>
-        <div className="plate-input">
-          <span className="eu">NL</span>
+        </Label>
+        <div className="flex max-w-[260px] items-stretch overflow-hidden rounded-lg border-[1.5px] border-[#1a1a1a] bg-plate focus-within:ring-3 focus-within:ring-ring/50">
+          <span className="flex items-end bg-eu px-1.5 py-1 text-[11px] font-bold text-white">NL</span>
           <input
             id="plate-in"
+            className="w-full bg-transparent px-3 py-1.5 font-plate text-[28px] font-bold tracking-[0.06em] text-plate-foreground uppercase outline-none placeholder:text-black/35"
             placeholder="AB-123-C"
             maxLength={10}
             autoComplete="off"
@@ -131,77 +143,86 @@ export function NewReservationForm({ account, blocks, prefill, onDone }: Props) 
         </div>
       </div>
 
-      <div>
-        <span className="field-l">Hoe lang?</span>
-        <div className="durs">
+      <div className="flex flex-col gap-2">
+        <span className="text-[13px] font-semibold">Hoe lang?</span>
+        <ToggleGroup
+          aria-label="Duur"
+          variant="outline"
+          className="grid w-full grid-cols-3"
+          value={customUntil ? [] : [String(duration)]}
+          onValueChange={([next]) => {
+            if (!next) return
+            setDuration(next === 'end' ? 'end' : Number(next))
+            setCustomUntil('')
+          }}
+        >
           {PRESETS.map((p) => {
             const u = untilFor(p.key)
             return (
-              <button
+              <ToggleGroupItem
                 key={p.key}
-                className="dur"
-                aria-pressed={!customUntil && duration === p.key}
+                value={String(p.key)}
                 disabled={!u}
-                onClick={() => {
-                  setDuration(p.key)
-                  setCustomUntil('')
-                }}
+                className="h-auto flex-col gap-0 rounded-xl border-[1.5px] px-1.5 py-2.5 font-semibold leading-tight aria-pressed:border-primary aria-pressed:bg-secondary aria-pressed:text-primary"
               >
                 {p.label}
-                <small className="num">{u ? `tot ${clock(u)}` : 'onbekend'}</small>
-              </button>
+                <small className="text-[11px] font-medium text-muted-foreground tabular-nums group-aria-pressed/toggle:text-primary">
+                  {u ? `tot ${clock(u)}` : 'onbekend'}
+                </small>
+              </ToggleGroupItem>
             )
           })}
-        </div>
-        <div className="custom">
-          <label htmlFor="until-in">of tot</label>
-          <input type="time" id="until-in" step={600} value={customUntil} onChange={(e) => setCustomUntil(e.target.value)} />
+        </ToggleGroup>
+        <div className="mt-1 flex items-center gap-2.5 text-sm text-muted-foreground">
+          <Label htmlFor="until-in" className="font-normal">
+            of tot
+          </Label>
+          <Input
+            type="time"
+            id="until-in"
+            step={600}
+            className="h-9 w-auto rounded-[10px] border-[1.5px] font-semibold text-foreground tabular-nums"
+            value={customUntil}
+            onChange={(e) => setCustomUntil(e.target.value)}
+          />
         </div>
       </div>
 
       {until && <TariffStrip blocks={blocks} now={now} booking={[from, until]} />}
 
       {until && (
-        <div className="summary">
-          <div className="sum-row">
-            <span>Periode</span>
-            <b className="num">
-              {clock(from)} – {clock(until)}
-              {dayLabelSuffix(until, from)}
-            </b>
-          </div>
-          <div className="sum-row">
-            <span>Kost</span>
-            <b className="num">{hm(cost)}</b>
-          </div>
-          <div className="sum-row">
-            <span>Saldo daarna</span>
-            <b className="num">{after < 0 ? `${hm(-after)} tekort` : hm(after)}</b>
-          </div>
+        <div className="flex flex-col gap-2.5 rounded-2xl bg-muted p-3.5">
+          <SummaryRow label="Periode">
+            {clock(from)} – {clock(until)}
+            {dayLabelSuffix(until, from)}
+          </SummaryRow>
+          <SummaryRow label="Kost">{hm(cost)}</SummaryRow>
+          <SummaryRow label="Saldo daarna">{after < 0 ? `${hm(-after)} tekort` : hm(after)}</SummaryRow>
           {after < 0 ? (
-            <div className="callout warn">Je saldo is {hm(-after)} te kort. Kies een kortere tijd of waardeer op.</div>
+            <Alert variant="warning">Je saldo is {hm(-after)} te kort. Kies een kortere tijd of waardeer op.</Alert>
           ) : cost === 0 && nextPaid ? (
-            <div className="callout">
+            <Alert variant="info" role="note">
               Deze hele periode is gratis. Aanmelden is pas nodig vanaf {clock(nextPaid)}
               {dayLabelSuffix(nextPaid, from)}.
-            </div>
+            </Alert>
           ) : freeMinutes >= 1 ? (
-            <div className="callout">{hm(freeMinutes)} hiervan valt in gratis tijd en kost niets.</div>
+            <Alert variant="info" role="note">
+              {hm(freeMinutes)} hiervan valt in gratis tijd en kost niets.
+            </Alert>
           ) : null}
-          <div className="label">Te vroeg klaar? Stop op elk moment en krijg de rest terug.</div>
+          <div className="text-xs font-medium text-muted-foreground">Te vroeg klaar? Stop op elk moment en krijg de rest terug.</div>
         </div>
       )}
 
       {isNewPlate && (
-        <div>
-          <label className="toggle">
-            <span>Bewaar dit kenteken</span>
-            <input type="checkbox" checked={save} onChange={(e) => setSave(e.target.checked)} />
-          </label>
+        <div className="flex flex-col gap-2">
+          <Label className="justify-between text-sm font-normal">
+            Bewaar dit kenteken
+            <Switch checked={save} onCheckedChange={setSave} />
+          </Label>
           {save && (
-            <input
-              className="text-in"
-              style={{ marginTop: 8 }}
+            <Input
+              className="h-10 rounded-[10px] text-base"
               placeholder="Naam, bijv. Oma Ria"
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
@@ -211,15 +232,15 @@ export function NewReservationForm({ account, blocks, prefill, onDone }: Props) 
         </div>
       )}
 
-      {error && <div className="callout warn">{error}</div>}
+      {error && <Alert variant="warning">{error}</Alert>}
 
-      <button className="cta" disabled={!ready || busy} onClick={submit}>
+      <Button size="xl" disabled={!ready || busy} onClick={submit}>
         {busy
           ? 'Bezig…'
           : isPlausiblePlate(plate) && until
             ? `${formatPlate(plate)} aanmelden tot ${clock(until)}`
             : 'Kies of typ een kenteken'}
-      </button>
+      </Button>
     </>
   )
 }

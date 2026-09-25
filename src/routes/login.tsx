@@ -1,7 +1,14 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
+import { Brand } from '#/components/Brand'
+import { Alert } from '#/components/ui/alert'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
+import { Switch } from '#/components/ui/switch'
+import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
 import { getSignedIn, logIn } from '#/lib/api'
-import { errorMessage } from '#/components/Toast'
+import { errorMessage } from '#/lib/utils'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: async () => {
@@ -41,35 +48,39 @@ function Login() {
   }
 
   return (
-    <div className="shell">
-      <div className="topbar">
-        <div className="brand">
-          parkeer<em>gast</em>
-        </div>
+    <div className="mx-auto flex min-h-dvh max-w-app flex-col">
+      <div className="px-5 pt-[calc(env(safe-area-inset-top,0px)+18px)] pb-2">
+        <Brand />
       </div>
-      <main className="login">
-        <div>
-          <h1>Log in met je bezoekersvergunning</h1>
-          <p style={{ marginTop: 8 }}>Gebruik dezelfde gegevens als op parkerendelft.com.</p>
+      <main className="flex flex-col gap-5 px-4 pt-6 pb-12">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-[30px] leading-tight font-extrabold tracking-tight text-balance">Log in met je bezoekersvergunning</h1>
+          <p className="text-muted-foreground">Gebruik dezelfde gegevens als op parkerendelft.com.</p>
         </div>
 
-        <div className="segmented" role="group" aria-label="Inlogmethode">
-          <button type="button" aria-pressed={method === 'Gebruiker'} onClick={() => setMethod('Gebruiker')}>
+        <ToggleGroup
+          aria-label="Inlogmethode"
+          spacing={0}
+          className="grid w-full grid-cols-2 rounded-[14px] border bg-card p-1"
+          value={[method]}
+          onValueChange={([next]) => next && setMethod(next as Method)}
+        >
+          <ToggleGroupItem value="Gebruiker" className="h-9 rounded-[10px]! text-[13px] font-semibold text-muted-foreground aria-pressed:text-foreground">
             Gebruikersnaam
-          </button>
-          <button type="button" aria-pressed={method === 'Pas'} onClick={() => setMethod('Pas')}>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="Pas" className="h-9 rounded-[10px]! text-[13px] font-semibold text-muted-foreground aria-pressed:text-foreground">
             Meldnummer en pincode
-          </button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
 
-        <form className="form" onSubmit={submit}>
-          <div>
-            <label className="field-l" htmlFor="identifier">
+        <form className="flex flex-col gap-4" onSubmit={submit}>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="identifier" className="text-[13px] font-semibold">
               {method === 'Gebruiker' ? 'Gebruikersnaam' : 'Meldnummer'}
-            </label>
-            <input
+            </Label>
+            <Input
               id="identifier"
-              className="text-in"
+              className="h-10 rounded-[10px] bg-card text-base"
               autoComplete="username"
               inputMode={method === 'Pas' ? 'numeric' : undefined}
               value={identifier}
@@ -77,13 +88,13 @@ function Login() {
               required
             />
           </div>
-          <div>
-            <label className="field-l" htmlFor="password">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="password" className="text-[13px] font-semibold">
               {method === 'Gebruiker' ? 'Wachtwoord' : 'Pincode'}
-            </label>
-            <input
+            </Label>
+            <Input
               id="password"
-              className="text-in"
+              className="h-10 rounded-[10px] bg-card text-base"
               type="password"
               autoComplete="current-password"
               inputMode={method === 'Pas' ? 'numeric' : undefined}
@@ -92,15 +103,15 @@ function Login() {
               required
             />
           </div>
-          <label className="toggle">
-            <span>Ingelogd blijven</span>
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-          </label>
-          {error && <div className="callout warn">{error}</div>}
-          <button className="cta" disabled={busy}>
+          <Label className="justify-between text-sm font-normal">
+            Ingelogd blijven
+            <Switch checked={remember} onCheckedChange={setRemember} />
+          </Label>
+          {error && <Alert variant="warning">{error}</Alert>}
+          <Button type="submit" size="xl" disabled={busy}>
             {busy ? 'Bezig met inloggen…' : 'Inloggen'}
-          </button>
-          <p className="fine">
+          </Button>
+          <p className="text-[13px] text-muted-foreground">
             Parkeergast stuurt je gegevens door naar Parkeren Delft. Met "Ingelogd blijven" bewaren we ze versleuteld in een cookie op
             dit apparaat, zodat je niet elke 15 minuten opnieuw hoeft in te loggen.
           </p>
